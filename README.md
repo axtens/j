@@ -6,9 +6,10 @@ j.8th is a command-line navigation tool wrapping the functionality of PUSHD and 
 j.8th is executed within the context of j.cmd. Shortcuts are stored in "j.json"  which is stored in "%USERPROFILE%\.j\". Both the folder and the file are created if they do not exist. Shortcuts are words which resolve to paths in the directory. j.8th provides tools for adding and listing shortcuts.
 
 j.cmd at its simplest is
+```cmd
 	@echo off
 	8th c:\bin\j.8th "%~f0" %*
-
+```
 (j.cmd assumes that 8th.exe is on the PATH. If it's not there, add it to PATH or edit j.cmd to be explicit as to where 8th.exe may be found.)
 
 The result of any given run of j.8th adds one or two lines to j.cmd.
@@ -60,4 +61,3 @@ sym [subdir ...] [ -s shell_cmd |
 		<empty>
 ```
 I started working with computers in 1977. Back then when there was only a command line (and sometimes not even that.) Despite the nice glossy front ends available nowadays I still live mostly on a command line: bash/fish in Linux/Mac or CMD (and occasionally PowerShell and wsl) in Windows. I had written a purely batch version but wanted some more functionality. 8th provided the tools for that functionality.
-

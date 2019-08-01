@@ -1,0 +1,262 @@
+\ Note: the OS's current dir won't change if the script does a G:chdir
+\ so have to do 8th inside a CMD
+
+0 args var, cmdPath
+1 args var, dest
+1 args var, op
+2 args var, sym
+3 args var, val
+
+"" var, cmdBuffer
+
+var jsonBuffer
+
+"USERPROFILE" G:getenv f:enssep ".j" f:enssep s:+ var, jFolder
+"USERPROFILE" G:getenv f:enssep ".j" f:enssep s:+ "j.json" s:+ var, jFile
+
+: saveJSON
+	jFile @ f:create \ FILE -- 
+	jsonBuffer @ >json 
+	8thver? "17.01" s:= 
+	if
+		"\\" "\\\\" s:replace! 
+	then
+	f:write drop f:close \
+;
+	
+: loadJSON 
+	jFile @ f:slurp \ str|null
+ 	null? not \ str|null b
+	if \ str|null
+		json>
+		jsonBuffer ! \
+	then
+	
+;
+
+: maybeGenerateJSON
+	jFolder @ f:dir? not
+	if 
+		jFolder @ f:mkdir
+	then
+	jFile @ f:exists? not \ str b --
+	if \ str --
+		f:create \ FILE --
+		{} >json f:write drop \ FILE --
+		f:close
+	then
+;
+
+: is-add
+    op @ -1 s:rsub "add" s:=
+	op @ -1 s:rsub "a" s:=
+	or
+;
+
+: is-delete
+	op @ -1 s:rsub "delete" s:=
+	op @ -1 s:rsub "d" s:=
+	or
+;
+
+: is-list
+	op @ -1 s:rsub "list" s:= 
+	op @ -1 s:rsub "l" s:=
+	or
+;
+
+: is-help
+	op @ -1 s:rsub "help" s:=
+	op @ -1 s:rsub "h" s:=
+	or
+;
+
+: is-cmddir
+	op @ -1 s:rsub "cmddir" s:=
+;
+
+: is-jsondir
+	op @ -1 s:rsub "jsondir" s:=
+;
+
+: do-add
+    sym @ null? val @ null? or 
+	if
+		"sym or val not supplied" . cr
+		;;
+	then
+	loadJSON
+	null? not 
+	if 
+		jsonBuffer @ sym @ val @ m:!?
+		saveJSON
+	then
+;
+
+: do-delete
+	sym @ null? 
+	if 
+		"sym not defined" . cr
+		;;
+	else
+		"-delete not implemented" . cr
+	then
+	
+;
+
+: do-list
+	loadJSON 
+	jsonBuffer @  \ str
+	null? not
+	if 
+		( swap . " -> " . . cr ) m:each
+	then
+;
+
+: do-help 
+	"j [ [ -add | -a ] sym val | [ -delete | -d ] sym | -list | [ -help | -h ] | [ -jsondir path ] | [ -cmddir path ] ] | sym [subdir ...] [ -s shell_cmd | -i inline_cmd ] | <empty> " . cr 
+;
+
+: do-jsondir
+	sym @ null? 
+	if 
+		"path not given in -jsondir" . cr
+		;;
+	else
+		"-jsondir not implemented" . cr
+	then
+;
+
+: do-cmddir
+	sym @ null? 
+	if 
+		"path not given in -cmddir" . cr
+		;;
+	else
+		"-cmddir not implemented" . cr
+	then
+;
+
+: do-nothing 
+	"j error: " . op @ . " not known" . cr cr
+	do-help
+;
+
+: handleOptions 
+	[ ' is-add , ' do-add , 
+	  ' is-delete , ' do-delete , 
+	  ' is-list , ' do-list , 
+	  ' is-help , ' do-help , 
+	  ' is-jsondir , ' do-jsondir , 
+	  ' is-cmddir , ' do-cmddir , 
+	  ' do-nothing ] when 
+;
+
+: findKeyInJSON \ str --
+	jsonBuffer @ \ str map --
+	swap dup \ map str str --
+	m:@? \ map val
+	nip
+;
+
+: catenateArgs \ f n -- f 
+	n:1+ 
+	(
+		args null? not \ s b
+		if \ s
+			cmdBuffer G:@ \ s S
+			swap \ S s
+			" " s:+ s:+ cmdBuffer G:! 
+		else
+			drop
+		then
+		
+	) swap argc n:1- loop
+;
+
+: shellThing \ f -- f	
+	catenateArgs
+	"start \"j-shell\" " cmdBuffer @ s:+ cmdBuffer !
+;
+
+: inlineThing \ f -- f	
+	catenateArgs
+;
+
+: argumentLooper \ f n -- f
+	  \ f n
+		>r \ f 
+		"\\" f:write drop 
+		r> \ f n
+		dup \ f n n 
+		args \ f n s
+		\ here check for presence of -s 
+		dup \ f n s s 
+		"-s" s:= \ f n s b
+		if \ f n s
+			drop \ f n
+			shellThing \ f 
+			break
+		else
+			\ f n s
+			dup \ f n s s 
+			"-i" s:= \ f n s b
+			if \ f n s 
+				drop \ f n 
+				inlineThing \ f 
+				break
+			else 
+				nip \ f s
+				f:write drop \ f
+			then
+		then
+	;
+
+: writePUSHD \ s --
+	cmdPath @ f:open \ f  
+	f:size f:seek \ f
+	"pushd \"" f:write drop \ f
+	dest @ findKeyInJSON  \ f s
+	f:write drop \ f
+    ' argumentLooper 2 argc n:1- loop
+	"\"\r\n" f:write drop \ goto :eof\r\n
+	cmdBuffer @ dup "" s:= not \ f s b
+	if \ f s
+	   f:write \ f n
+ 	then
+	drop \ f
+	f:close
+;
+
+: writePOPD \ s --
+	cmdPath @ f:open \ f  
+	f:size f:seek \ f
+	"popd\r\n" f:write drop \ f
+	f:close \ --
+;
+
+: handleArgs \ --
+	cmdPath @ f:create \ FILE -- 
+	"@echo off\r\n" 
+	app:exename 
+	" c:\\bin\\j.8th \"%~f0\" %*\r\n" s:+ s:+ f:write drop \ FILE -- 
+	f:close \ --
+	dest @ null? not \ s b 
+	if \ s --
+		0 1 s:slice \ s --
+		"-" s:= \ b
+		if
+			handleOptions
+		else
+			loadJSON
+			writePUSHD
+		then
+	else
+		writePOPD
+	then	
+;
+
+maybeGenerateJSON
+handleArgs
+bye
+

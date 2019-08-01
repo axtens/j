@@ -114,7 +114,16 @@ var jsonBuffer
 ;
 
 : do-help 
-	"j [ [ -add | -a ] sym val | [ -delete | -d ] sym | -list | [ -help | -h ] | [ -jsondir path ] | [ -cmddir path ] ] | sym [subdir ...] [ -s shell_cmd | -i inline_cmd ] | <empty> " . cr 
+	"Syntax: j 
+	[ [ -add | -a ] sym val | 
+	[ -delete | -d ] sym | 
+	-list | 
+	[ -help | -h ] | 
+	[ -jsondir path ] | 
+	[ -cmddir path ] ] | 
+	sym [subdir ...] [ -s shell_cmd | 
+			-i inline_cmd ] | 
+			<empty> " . cr 
 ;
 
 : do-jsondir
